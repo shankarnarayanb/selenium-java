@@ -1,2 +1,2 @@
 # selenium-java
-Sample Project with selenium and Java based on Gradle
+Sample Project with TestNG, Selenium and Java based on Gradle
