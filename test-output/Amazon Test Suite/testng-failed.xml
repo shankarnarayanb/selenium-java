@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE suite SYSTEM "http://testng.org/testng-1.0.dtd">
+<suite guice-stage="DEVELOPMENT" name="Failed suite [Amazon Test Suite]">
+  <test thread-count="5" name="C:/Users/119174/IdeaProjects/Testing/selenium-java(failed)">
+    <classes>
+      <class name="SearchTest">
+        <methods>
+          <include name="searchProduct"/>
+          <include name="setup"/>
+          <include name="tearDown"/>
+        </methods>
+      </class> <!-- SearchTest -->
+    </classes>
+  </test> <!-- C:/Users/119174/IdeaProjects/Testing/selenium-java(failed) -->
+</suite> <!-- Failed suite [Amazon Test Suite] -->
