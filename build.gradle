@@ -12,14 +12,13 @@ repositories {
 }
 
 dependencies {
+    testCompile group: 'org.slf4j', name: 'slf4j-log4j12', version: '1.7.26'
     // https://mvnrepository.com/artifact/org.seleniumhq.selenium/selenium-java
     compile group: 'org.seleniumhq.selenium', name: 'selenium-java', version: '3.141.59'
     // https://mvnrepository.com/artifact/org.testng/testng
     testCompile group: 'org.testng', name: 'testng', version: '6.14.3'
     // https://mvnrepository.com/artifact/org.assertj/assertj-core
     testCompile group: 'org.assertj', name: 'assertj-core', version: '3.11.1'
-    // https://mvnrepository.com/artifact/io.qameta.allure/allure-testng
-    compile group: 'io.qameta.allure', name: 'allure-testng', version: '2.6.0'
 }
 
 test {
