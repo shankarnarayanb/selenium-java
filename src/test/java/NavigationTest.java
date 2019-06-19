@@ -1,3 +1,4 @@
+import io.github.bonigarcia.wdm.WebDriverManager;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.testng.Assert;
@@ -10,9 +11,9 @@ public class NavigationTest {
     public void beforeMethod() {
 
         // set path of Chromedriver executable
-        System.setProperty("webdriver.chrome.driver",
-                "src/test/resources/drivers/chromedriver.exe");
-
+//        System.setProperty("webdriver.chrome.driver",
+//                "src/test/resources/drivers/chromedriver.exe");
+        WebDriverManager.chromedriver().setup();
         // initialize new WebDriver session
         driver = new ChromeDriver();
     }
@@ -27,8 +28,9 @@ public class NavigationTest {
     }
     @AfterMethod
     public void afterMethod() {
-
-        // close and quit the browser
-        driver.quit();
+        if (driver != null) {
+            // close and quit the browser
+            driver.quit();
+        }
     }
 }

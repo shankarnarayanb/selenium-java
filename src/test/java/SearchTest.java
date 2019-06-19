@@ -1,3 +1,4 @@
+import io.github.bonigarcia.wdm.WebDriverManager;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
@@ -16,8 +17,9 @@ public class SearchTest {
 
     @BeforeMethod
     public void setup() {
-        System.setProperty("webdriver.chrome.driver",
-                "src/test/resources/drivers/chromedriver.exe");
+//        System.setProperty("webdriver.chrome.driver",
+//                "src/test/resources/drivers/chromedriver.exe");
+        WebDriverManager.chromedriver().setup();
         driver = new ChromeDriver();
         driver.get("https://www.amazon.co.uk/");
     }
@@ -37,6 +39,16 @@ public class SearchTest {
 
     @AfterMethod
     public void tearDown() {
-        driver.quit();
+        if (driver != null) {
+            driver.quit();
+        }
     }
 }
+
+
+
+//TODO Add lofg4j properties to remove warning messages
+//  log4j.rootLogger=debug, stdout;
+//  log4j.appender.stdout=org.apache.log4j.ConsoleAppender;
+//  log4j.appender.stdout.layout=org.apache.log4j.PatternLayout;
+//  log4j.appender.stdout.layout.ConversionPattern=%-4r [%t] %-5p %c %x - %m%n;
