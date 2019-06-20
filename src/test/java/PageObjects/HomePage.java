@@ -11,7 +11,7 @@ import org.openqa.selenium.support.PageFactory;
  * The parametised constructor HomePage(WebDriver driver) sets up the page when called with the driver context.
  * The elements using @FindBy are null until they are called - they are then initialised by the driver.
  */
-public class HomePage extends AbstractPageObject {
+public class HomePage {
     @FindBy(id = "twotabsearchtextbox")
     private WebElement searchBox;
 

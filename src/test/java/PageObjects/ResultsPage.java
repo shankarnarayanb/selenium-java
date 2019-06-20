@@ -5,7 +5,7 @@ import org.openqa.selenium.WebElement;
 import org.openqa.selenium.support.FindBy;
 import org.openqa.selenium.support.PageFactory;
 
-public class ResultsPage extends AbstractPageObject {
+public class ResultsPage {
     @FindBy(xpath = "*/head/title")
     private WebElement title;
 
