@@ -24,7 +24,7 @@ public class SearchTestSteps implements En {
     public SearchTestSteps() {
         Given("^the user is on the homepage$", this::goToHomePage);
         When("^they search for \"([^\"]*)\"$", this::search);
-        Then("^the results page' title should be \"([^\"]*)\"$", this::compareTitle);
+        Then("^the results page's title should be \"([^\"]*)\"$", this::compareTitle);
     }
 
     private void goToHomePage() {
