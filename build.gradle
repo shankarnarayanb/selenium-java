@@ -29,9 +29,8 @@ test {
     useTestNG()
 }
 
+//Currently tests are only separated by either using JUnit or TestNG - Ideally, they should be separated by Gradle Source Sets
 task runWithCucumber(type: Test) {
-    doLast {
-        include "Runner.class"
-    }
+        systemProperties(System.getProperties())
 }
 

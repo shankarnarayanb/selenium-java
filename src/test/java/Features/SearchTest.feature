@@ -1,16 +1,19 @@
 #This is the feature file, it is the controller of the specific tests
 Feature: Search Test
 
+  @one
   Scenario: Open the homepage and search for Mobile Phones
     Given the user is on the homepage
     When they search for "Mobile Phones"
     Then the results page's title should be "Amazon.co.uk: Mobile Phones"
 
+  @two
   Scenario: Open the homepage and search for Laptops
     Given the user is on the homepage
     When they search for "Laptops"
     Then the results page's title should be "Amazon.co.uk: Laptops"
 
+  @all
   Scenario Outline: Open the homepage and search for something
     Given the user is on the homepage
     When they search for "<search term>"

@@ -9,6 +9,8 @@ import org.junit.runner.RunWith;
  * The @CucumberOptions annotation sets up cucumber and tells the location of the features and step defs (glue)
  */
 @RunWith(Cucumber.class)
-@CucumberOptions(features = "src/test/java/Features", glue = {"StepDefs/"})
+@CucumberOptions(features = "src/test/java/Features",
+        glue = {"StepDefs/"},
+        tags = {"not @manual"})
 public class Runner {
 }

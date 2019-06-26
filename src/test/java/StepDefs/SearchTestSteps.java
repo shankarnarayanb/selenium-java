@@ -49,6 +49,8 @@ public class SearchTestSteps implements En {
     //Make sure to import cucumber.api.java.After; and not the JUnit @After, otherwise this will not run.
     @After
     public void closeDriver() {
-        driver.close();
+        if (driver != null) {
+            driver.close();
+        }
     }
 }
