@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Postman / Newman JSON Report Viewer</title>
+<style>
+  :root {
+    --bg: #0f172a;
+    --panel: #111827;
+    --muted: #94a3b8;
+    --text: #e5e7eb;
+    --accent: #22c55e;
+    --fail: #ef4444;
+    --warn: #f59e0b;
+    --card: #0b1220;
+    --chip: #1f2937;
+  }
+  html, body { height: 100%; }
+  body {
+    margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica Neue, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+    background: linear-gradient(180deg, var(--bg) 0%, #0b1020 100%);
+    color: var(--text);
+  }
+  header {
+    position: sticky; top: 0; z-index: 10;
+    background: rgba(15, 23, 42, .9);
+    backdrop-filter: blur(6px);
+    border-bottom: 1px solid #1f2937;
+    padding: 12px 16px;
+    display: flex; gap: 16px; align-items: center; justify-content: space-between;
+  }
+  .brand { font-weight: 700; letter-spacing: .3px; }
+  .brand small { color: var(--muted); font-weight: 500; }
+  .controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap;}
+  input[type="file"] { color: var(--muted); }
+  .btn {
+    border: 1px solid #374151; background: #0b1220; color: var(--text);
+    padding: 8px 12px; border-radius: 10px; cursor: pointer;
+  }
+  .btn:hover { background:#10182b }
+  main { padding: 16px; max-width: 1200px; margin: 0 auto; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-top: 12px; }
+  .card { background: var(--card); border: 1px solid #1f2937; border-radius: 14px; padding: 14px; }
+  .card h3 { margin: 4px 0 8px; font-size: 14px; color: var(--muted); font-weight: 600; letter-spacing: .2px; }
+  .value { font-size: 28px; font-weight: 800; }
+  .value.ok { color: var(--accent); }
+  .value.fail { color: var(--fail); }
+  .value.warn { color: var(--warn); }
+  .meta { color: var(--muted); font-size: 12px; margin-top: 4px; }
+  .grid { width: 100%; border-collapse: collapse; margin-top: 16px; background: #0b1220; border-radius: 14px; overflow: hidden; border: 1px solid #1f2937; }
+  .grid th, .grid td { padding: 10px 12px; border-bottom: 1px solid #1f2937; text-align: left; vertical-align: top; }
+  .grid th { background: #0f1a33; color: #cbd5e1; font-size: 12px; text-transform: uppercase; letter-spacing: .5px; }
+  .status-chip { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; border: 1px solid #234; }
+  .status-pass { background: rgba(34,197,94,.15); color: #86efac; border-color: rgba(34,197,94,.4); }
+  .status-fail { background: rgba(239,68,68,.15); color: #fca5a5; border-color: rgba(239,68,68,.4); }
+  .status-skip { background: rgba(245,158,11,.15); color: #fcd34d; border-color: rgba(245,158,11,.4); }
+  .flex { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .muted { color: var(--muted); }
+  .mono { font-family: ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace; font-size: 12px; }
+  .accordion { margin-top: 8px; }
+  details { background: #0a0f1e; border: 1px solid #1f2937; border-radius: 10px; padding: 8px 12px; margin-top: 8px; }
+  details[open] { background: #0c1629; }
+  summary { cursor: pointer; color: #cbd5e1; font-weight: 600; }
+  pre { background: #040816; border: 1px solid #1f2937; color: #e5e7eb; padding: 10px; border-radius: 10px; overflow: auto; max-height: 360px; }
+  .footer { color: var(--muted); font-size: 12px; margin: 24px 0; text-align: center; }
+  .search-bar { margin-top: 12px; display: flex; gap: 8px; }
+  .search-bar input { flex: 1; padding: 8px 10px; border-radius: 10px; border: 1px solid #1f2937; background: #0b1220; color: var(--text); }
+  .tag { background: var(--chip); color: #cbd5e1; padding: 2px 8px; border-radius: 999px; font-size: 12px; border: 1px solid #334155; }
+  .right { text-align: right; }
+  @media (max-width: 720px) {
+    .hide-sm { display: none; }
+  }
+</style>
+</head>
+<body>
+  <header>
+    <div class="brand">Postman / Newman Report Viewer <small>offline</small></div>
+    <div class="controls">
+      <input type="file" id="file" accept=".json">
+      <button class="btn" id="demo">Load demo</button>
+    </div>
+  </header>
+  <main>
+    <div id="welcome">
+      <p>Drop a <b>Newman JSON report</b> or Postman <b>Collection Runner export</b> here. This viewer renders a pretty dashboard with totals, pass/fail, drill‑down into each request, assertions, and request/response bodies. No internet or installs needed.</p>
+      <ul>
+        <li>Works offline in your VDI browser</li>
+        <li>Supports common Newman JSON schema (<code>run.stats</code>, <code>run.executions</code>)</li>
+        <li>Client‑side only — your data never leaves your machine</li>
+      </ul>
+    </div>
+
+    <section id="summary" style="display:none;">
+      <div class="cards" id="cards"></div>
+      <div class="search-bar">
+        <input id="search" type="search" placeholder="Filter by name, status, method, URL, assertion…">
+        <span id="filterCounts" class="muted"></span>
+      </div>
+      <table class="grid" id="table">
+        <thead>
+          <tr>
+            <th>Item</th>
+            <th class="hide-sm">Method</th>
+            <th class="hide-sm">URL</th>
+            <th>Assertions</th>
+            <th class="hide-sm">Status</th>
+            <th class="right">Time (ms)</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+      <div class="footer" id="meta"></div>
+    </section>
+  </main>
+
+<script>
+  const byId = id => document.getElementById(id);
+  const fileInput = byId('file');
+  const demoBtn = byId('demo');
+  const summary = byId('summary');
+  const cards = byId('cards');
+  const table = byId('table').querySelector('tbody');
+  const meta = byId('meta');
+  const search = byId('search');
+  const welcome = byId('welcome');
+  const filterCounts = byId('filterCounts');
+
+  const DEMO = {
+    "collection": {"info":{"name":"Demo Petstore"}},
+    "run": {
+      "stats": {
+        "iterations":{"total":1,"failed":0},
+        "items":{"total":3,"failed":0},
+        "requests":{"total":3,"failed":1},
+        "testScripts":{"total":3,"failed":0},
+        "assertions":{"total":6,"failed":2}
+      },
+      "timings":{"responseAverage": 128},
+      "executions":[
+        {"item":{"name":"List pets"},"request":{"method":"GET","url":{"raw":"https://api.example.com/v1/pets"}},
+         "response":{"code":200,"responseTime":110},
+         "assertions":[{"assertion":"status code is 200","error":null},{"assertion":"has items","error":null}]
+        },
+        {"item":{"name":"Create pet"},"request":{"method":"POST","url":{"raw":"https://api.example.com/v1/pets"}},
+         "response":{"code":400,"responseTime":210},
+         "assertions":[{"assertion":"status code is 201","error":{"name":"AssertionError","message":"expected 400 to equal 201"}},
+                       {"assertion":"json has id","error":{"name":"TypeError","message":"Cannot read properties of undefined"}}]
+        },
+        {"item":{"name":"Get pet"},"request":{"method":"GET","url":{"raw":"https://api.example.com/v1/pets/1"}},
+         "response":{"code":200,"responseTime":65},
+         "assertions":[{"assertion":"status code is 200","error":null},
+                       {"assertion":"has name","error":null}]
+        }
+      ]
+    }
+  };
+
+  fileInput.addEventListener('change', e => {
+    const f = e.target.files[0];
+    if (!f) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const data = JSON.parse(reader.result);
+        render(data);
+      } catch (err) {
+        alert("Could not parse JSON: " + err.message);
+      }
+    };
+    reader.readAsText(f);
+  });
+
+  demoBtn.addEventListener('click', () => render(DEMO));
+
+  function safe(v, d="") { return v==null ? d : v; }
+
+  function flattenExecutions(run) {
+    const execs = safe(run.executions, []);
+    return execs.map(ex => {
+      const name = safe(ex.item && ex.item.name, "Unnamed");
+      const method = safe(ex.request && ex.request.method, "");
+      const url = safe(ex.request && ex.request.url && (ex.request.url.raw || (ex.request.url.protocol?`${ex.request.url.protocol}://${(ex.request.url.host||[]).join('.')}${ex.request.url.path?'/'+ex.request.url.path.join('/'):''}`:"")), "");
+      const code = safe(ex.response && ex.response.code, null);
+      const time = safe(ex.response && ex.response.responseTime, null);
+      const assertions = (ex.assertions||[]).map(a => ({ name: safe(a.assertion,"(unnamed)"), passed: !a.error, error: a.error }));
+      const passed = assertions.every(a => a.passed);
+      return { name, method, url, code, time, assertions, passed, raw: ex };
+    });
+  }
+
+  function render(data) {
+    welcome.style.display = 'none';
+    summary.style.display = '';
+
+    const run = data.run || {};
+    const stats = run.stats || {};
+    const timings = run.timings || {};
+    const executions = flattenExecutions(run);
+
+    // Totals
+    const totals = {
+      items: safe(stats.items && stats.items.total, executions.length),
+      requests: safe(stats.requests && stats.requests.total, executions.length),
+      assertions: safe(stats.assertions && stats.assertions.total, executions.reduce((a,b)=>a + b.assertions.length,0)),
+      failedRequests: safe(stats.requests && stats.requests.failed, executions.filter(e=>!e.passed).length),
+      failedAssertions: safe(stats.assertions && stats.assertions.failed, executions.reduce((a,b)=>a + b.assertions.filter(x=>!x.passed).length,0)),
+      avg: safe(timings.responseAverage, Math.round(executions.reduce((a,b)=>a+(+b.time||0),0)/Math.max(1,executions.length)))
+    };
+
+    // Cards
+    cards.innerHTML = `
+      <div class="card"><h3>Collection</h3><div class="value">${safe(data.collection && data.collection.info && data.collection.info.name,"(unknown)")}</div><div class="meta">${new Date().toLocaleString()}</div></div>
+      <div class="card"><h3>Requests</h3><div class="value ${totals.failedRequests? 'warn':''}">${totals.requests}</div><div class="meta"><span class="tag">${totals.requests - totals.failedRequests} passed</span> <span class="tag">${totals.failedRequests} failed</span></div></div>
+      <div class="card"><h3>Assertions</h3><div class="value ${totals.failedAssertions? 'fail':'ok'}">${totals.assertions}</div><div class="meta"><span class="tag">${totals.assertions - totals.failedAssertions} passed</span> <span class="tag">${totals.failedAssertions} failed</span></div></div>
+      <div class="card"><h3>Avg Response</h3><div class="value">${isFinite(totals.avg)?totals.avg:'–'}</div><div class="meta">milliseconds</div></div>
+    `;
+
+    // Table
+    let rows = executions.map((e, idx) => {
+      const totalAsserts = e.assertions.length;
+      const failedAsserts = e.assertions.filter(a=>!a.passed).length;
+      const statusClass = failedAsserts ? 'status-fail' : 'status-pass';
+      const statusText = failedAsserts ? `Failed (${failedAsserts})` : 'Passed';
+      return `
+        <tr data-index="${idx}">
+          <td>
+            <div class="flex">
+              <span class="status-chip ${statusClass}">${statusText}</span>
+              <strong>${escapeHtml(e.name)}</strong>
+            </div>
+            ${renderAssertionsInline(e.assertions)}
+            ${renderAccordion(e)}
+          </td>
+          <td class="hide-sm mono">${escapeHtml(e.method||'')}</td>
+          <td class="hide-sm mono">${escapeHtml(e.url||'')}</td>
+          <td>${failedAsserts}/${totalAsserts} failed</td>
+          <td class="hide-sm">${e.code ?? ''}</td>
+          <td class="right mono">${e.time ?? ''}</td>
+        </tr>
+      `;
+    }).join('');
+    table.innerHTML = rows;
+
+    meta.textContent = `Rendered locally • Items: ${totals.items} • Requests: ${totals.requests} • Assertions: ${totals.assertions} • Failures: ${totals.failedAssertions}`;
+
+    // Simple search filter
+    search.oninput = () => {
+      const q = search.value.trim().toLowerCase();
+      let visible = 0;
+      [...table.querySelectorAll('tr')].forEach(tr => {
+        const text = tr.innerText.toLowerCase();
+        const show = !q || text.includes(q);
+        tr.style.display = show ? '' : 'none';
+        if (show) visible++;
+      });
+      filterCounts.textContent = q ? `${visible} rows match` : '';
+    };
+  }
+
+  function renderAssertionsInline(assertions) {
+    if (!assertions || !assertions.length) return `<div class="muted">No assertions</div>`;
+    const chips = assertions.slice(0,4).map(a => `<span class="tag">${escapeHtml(a.name)}${a.passed?'':' ❌'}</span>`).join(' ');
+    const more = assertions.length > 4 ? `<span class="muted">+${assertions.length-4} more</span>` : '';
+    return `<div class="flex" style="margin-top:6px;">${chips} ${more}</div>`;
+  }
+
+  function renderAccordion(e) {
+    const req = e.raw.request || {};
+    const res = e.raw.response || {};
+    const reqBody = (req.body && (req.body.raw || JSON.stringify(req.body, null, 2))) || '';
+    const resBody = res.stream ? tryDecode(res.stream) : (res.body || '');
+    const assertionList = e.assertions.map(a => `<li>${a.passed ? '✅' : '❌'} <span class="mono">${escapeHtml(a.name)}</span>${a.passed?'':`: <span class="muted">${escapeHtml(a.error && (a.error.message || a.error.name) || 'Error')}</span>`}</li>`).join('');
+
+    return `
+      <div class="accordion">
+        <details>
+          <summary>Details</summary>
+          <div class="muted" style="margin:6px 0;">${escapeHtml(req.method||'')} ${escapeHtml((req.url && (req.url.raw || '')) || '')}</div>
+          <div class="flex" style="gap:12px; flex-wrap:wrap;">
+            <div><span class="muted">Status:</span> <span class="mono">${res.code ?? ''}</span></div>
+            <div><span class="muted">Time:</span> <span class="mono">${res.responseTime ?? ''} ms</span></div>
+          </div>
+          <h4>Assertions</h4>
+          <ul>${assertionList || '<li class="muted">None</li>'}</ul>
+          <h4>Request</h4>
+          ${renderHeaders(req.header, 'Request headers')}
+          ${reqBody ? `<pre class="mono">${escapeHtml(reqBody)}</pre>` : '<div class="muted">No body</div>'}
+          <h4>Response</h4>
+          ${renderHeaders(res.header, 'Response headers')}
+          ${resBody ? `<pre class="mono">${escapeHtml(resBody)}</pre>` : '<div class="muted">No body</div>'}
+        </details>
+      </div>
+    `;
+  }
+
+  function renderHeaders(hdrs, title) {
+    const list = (hdrs || []).map(h => `<li><span class="mono">${escapeHtml(h.key||'')}:</span> <span class="muted">${escapeHtml(h.value||'')}</span></li>`).join('');
+    return list ? `<details><summary>${title}</summary><ul>${list}</ul></details>` : '';
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  function tryDecode(stream) {
+    try {
+      if (Array.isArray(stream)) {
+        // Newman sometimes gives Buffer-like array
+        const bytes = new Uint8Array(stream);
+        const dec = new TextDecoder('utf-8', {fatal:false});
+        return dec.decode(bytes);
+      }
+      if (typeof stream === 'object' && stream.type === 'Buffer' && Array.isArray(stream.data)) {
+        const bytes = new Uint8Array(stream.data);
+        const dec = new TextDecoder('utf-8', {fatal:false});
+        return dec.decode(bytes);
+      }
+      return typeof stream === 'string' ? stream : JSON.stringify(stream, null, 2);
+    } catch(e) {
+      return '[binary response]';
+    }
+  }
+</script>
+</body>
+</html>
