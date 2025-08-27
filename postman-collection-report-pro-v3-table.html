@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Postman Collection Test Report — Table Focus</title>
+<style>
+  :root { --bg:#0f172a; --border:#1f2937; --muted:#94a3b8; --text:#e5e7eb; --card:#0b1220; --accent:#22c55e; --fail:#ef4444; --warn:#f59e0b; --chip:#1f2937; }
+  body{margin:0;font-family:system-ui,Segoe UI,Roboto,Ubuntu,sans-serif;background:linear-gradient(180deg,var(--bg),#0b1020);color:var(--text)}
+  header{position:sticky;top:0;background:rgba(15,23,42,.9);backdrop-filter:blur(6px);border-bottom:1px solid var(--border);padding:10px 16px;display:flex;gap:8px;align-items:center;justify-content:space-between}
+  .brand{font-weight:700}.brand small{color:var(--muted)}
+  .controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .btn{border:1px solid #374151;background:#0b1220;color:var(--text);padding:8px 12px;border-radius:10px;cursor:pointer}
+  main{padding:16px;max-width:1300px;margin:0 auto}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-top:12px}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:12px}
+  .card h3{margin:2px 0 6px;color:var(--muted);font-size:14px}
+  .value{font-size:26px;font-weight:800}
+  .grid{width:100%;border-collapse:collapse;margin-top:16px;background:#0b1220;border-radius:14px;overflow:hidden;border:1px solid var(--border)}
+  .grid th,.grid td{padding:10px 12px;border-bottom:1px solid var(--border);text-align:left;vertical-align:top}
+  .grid th{background:#0f1a33;color:#cbd5e1;font-size:12px;text-transform:uppercase;letter-spacing:.5px}
+  .muted{color:var(--muted)}
+  .status-chip{display:inline-block;padding:2px 8px;border-radius:999px;border:1px solid rgba(255,255,255,.2);font-size:12px}
+  .pass{background:rgba(34,197,94,.15);color:#86efac}
+  .fail{background:rgba(239,68,68,.15);color:#fca5a5}
+  .search{margin-top:12px;display:flex;gap:8px}
+  .search input{flex:1;padding:8px 10px;border-radius:10px;border:1px solid var(--border);background:#0b1220;color:#fff}
+  details{background:#0a0f1e;border:1px solid var(--border);border-radius:10px;padding:8px 12px;margin-top:8px}
+  .assert-chip{display:inline-block;background:#0a0f1e;border:1px solid #243045;color:#cbd5e1;padding:2px 8px;border-radius:8px;margin-right:6px;margin-top:4px;font-size:12px}
+  .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+</style>
+</head>
+<body>
+  <header>
+    <div class="brand">Postman Report <small>table-only</small></div>
+    <div class="controls">
+      <input type="file" id="file" accept=".json,.postman_test_run">
+      <button class="btn" id="demo">Demo</button>
+      <button class="btn" id="failToggle">Failures only</button>
+      <button class="btn" id="csvBtn">Export CSV</button>
+      <button class="btn" id="htmlBtn">Export HTML</button>
+    </div>
+  </header>
+  <main>
+    <div id="welcome"><p>Load a <b>Postman Collection Runner</b> JSON export. The URL column has been replaced by a <b>Details</b> column with the assertion list.</p></div>
+    <section id="report" style="display:none;">
+      <div class="cards" id="cards"></div>
+      <div class="search"><input id="q" placeholder="Search name, method, assertion…"><span id="count" class="muted"></span></div>
+      <table class="grid">
+        <thead>
+          <tr><th>Item</th><th>Method</th><th>Details</th><th>Assertions</th><th>Status</th><th>Time (ms)</th></tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </section>
+  </main>
+<script>
+const $=id=>document.getElementById(id);
+const file=$('file'),demo=$('demo'),report=$('report'),welcome=$('welcome'),cards=$('cards'),tbody=$('tbody'),q=$('q'),count=$('count');
+const failToggle=$('failToggle'),csvBtn=$('csvBtn'),htmlBtn=$('htmlBtn');
+let globalNorm=null,showFailsOnly=false;
+
+const DEMO={name:"Demo Aggregated",results:[{id:"1",name:"POST /pets",url:"https://api/pets",responseCode:{code:200},times:[120,90],allTests:[{"HTTP 200":true,"JSON response":true,"🐶 pet name":true},{"HTTP 200":true,"JSON response":true,"🐶 pet name":true}],testPassFailCounts:{"HTTP 200":{pass:2,fail:0},"JSON response":{pass:2,fail:0},"🐶 pet name":{pass:2,fail:0}}}]};
+
+file.onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{render(JSON.parse(r.result));}catch(err){alert("Bad JSON:"+err.message);}};r.readAsText(f);};
+demo.onclick=()=>render(DEMO);
+failToggle.onclick=()=>{showFailsOnly=!showFailsOnly;drawTable();};
+csvBtn.onclick=()=>exportCSV();
+htmlBtn.onclick=()=>exportHTML();
+
+function normalize(d){
+  const methodMap={}; if(d.collection && Array.isArray(d.collection.requests)){ d.collection.requests.forEach(r=>{ if(r && r.id) methodMap[r.id]=r.method||methodMap[r.id]; }); }
+  const items=[];
+  (d.results||[]).forEach(r=>{
+    const method = r.method || methodMap[r.id] || (r.name && r.name.split(' ')[0].toUpperCase()) || '';
+    if(Array.isArray(r.allTests) && r.allTests.length){
+      const L = r.allTests.length;
+      const times = Array.isArray(r.times)? r.times : [];
+      for(let i=0;i<L;i++){
+        const tObj = r.allTests[i] || {};
+        const assertions = Object.keys(tObj).map(k=>({name:k, passed: !!tObj[k], error: tObj[k]? null : {message:"fail"}}));
+        items.push({
+          name: `${r.name || 'Unnamed'} (iter ${i+1})`,
+          iteration: i+1,
+          method, url: r.url || '',
+          time: (times[i]!=null? times[i] : null),
+          code: r.responseCode && r.responseCode.code || null,
+          assertions, pass: assertions.every(a=>a.passed)
+        });
+      }
+    } else {
+      const assertions=[];
+      if(r.tests && typeof r.tests==='object'){ for(const[k,v] of Object.entries(r.tests)){ assertions.push({name:k, passed:!!v, error:v?null:{message:"fail"}}); } }
+      else if(r.testPassFailCounts){ for(const[k,pf] of Object.entries(r.testPassFailCounts)){ const passed=(pf.pass||0)>0 && !(pf.fail>0); assertions.push({name:k, passed, error: passed?null:{message:`${pf.fail||0} failed`}});} }
+      items.push({ name: r.name || 'Unnamed', iteration:1, method, url:r.url||'', time:r.time||null, code:r.responseCode && r.responseCode.code || null, assertions, pass: assertions.every(a=>a.passed)});
+    }
+  });
+  let totalAssertions=0,totalFailed=0;
+  (d.results||[]).forEach(r=>{ if(r.testPassFailCounts){ for(const pf of Object.values(r.testPassFailCounts)){ totalAssertions+=(pf.pass||0)+(pf.fail||0); totalFailed+=(pf.fail||0);} } });
+  if(totalAssertions===0){ totalAssertions = items.reduce((s,e)=>s+e.assertions.length,0); totalFailed = items.reduce((s,e)=>s+e.assertions.filter(a=>!a.passed).length,0); }
+  const avg = items.length? Math.round(items.reduce((s,e)=>s+(e.time||0),0)/items.length) : 0;
+  return { collection: d.name || (d.collection && d.collection.info && d.collection.info.name) || '(unknown)',
+           items, totals: { requests: items.length, assertions: totalAssertions, failed: totalFailed, avg } };
+}
+
+function render(raw){
+  globalNorm = normalize(raw);
+  welcome.style.display='none'; report.style.display='';
+  drawHeader(); drawTable();
+}
+
+function drawHeader(){
+  const n = globalNorm;
+  cards.innerHTML = `
+    <div class="card"><h3>Collection</h3><div class="value">${esc(n.collection)}</div></div>
+    <div class="card"><h3>Requests</h3><div class="value">${n.totals.requests}</div></div>
+    <div class="card"><h3>Assertions</h3><div class="value">${n.totals.assertions}</div><div class="muted">${n.totals.assertions - n.totals.failed} passed • ${n.totals.failed} failed</div></div>
+    <div class="card"><h3>Avg Response</h3><div class="value">${n.totals.avg}</div><div class="muted">ms</div></div>
+  `;
+}
+
+function drawTable(){
+  const n = globalNorm;
+  const qtxt = ( $('q').value || '' ).toLowerCase();
+  const shown = n.items.filter(e=>(!showFailsOnly || !e.pass) && (!qtxt || (e.name+' '+e.method+' '+e.assertions.map(a=>a.name).join(' ')).toLowerCase().includes(qtxt)));
+  tbody.innerHTML = shown.map(e=>{
+    const fails=e.assertions.filter(a=>!a.passed).length;
+    return `<tr>
+      <td><span class="status-chip ${fails?'fail':'pass'}">${fails?fails+' fail':'pass'}</span> ${esc(e.name)}</td>
+      <td>${esc(e.method||'')}</td>
+      <td>${renderDetailsInline(e.assertions)}</td>
+      <td>${fails}/${e.assertions.length}</td>
+      <td>${e.code??''}</td>
+      <td>${e.time??''}</td>
+    </tr>`;
+  }).join('');
+  $('q').oninput = ()=>{ drawTable(); };
+  count.textContent = (showFailsOnly || $('q').value)? `${shown.length} of ${n.items.length} shown` : '';
+}
+
+function renderDetailsInline(assertions){
+  if(!assertions || !assertions.length) return '<span class="muted">No assertions</span>';
+  const lines = assertions.map(a=> `${a.passed ? '✅' : '❌'} ${esc(a.name)}`);
+  // show first 3 with chips, rest collapsed
+  const first = lines.slice(0,3).map(s=>`<span class="assert-chip">${s}</span>`).join('');
+  if (lines.length <= 3) return first;
+  return first + `<details><summary class="muted">+${lines.length-3} more</summary><div class="mono">${lines.slice(3).join('<br>')}</div></details>`;
+}
+
+function exportCSV(){
+  if(!globalNorm) return;
+  const rows = ["Name,Iteration,Method,Code,Time(ms),Assertions,Failed,Assertion Names"];
+  globalNorm.items.forEach(e=>{
+    rows.push([e.name,e.iteration,e.method,e.code??'',e.time??'',e.assertions.length,e.assertions.filter(a=>!a.passed).length, e.assertions.map(a=>a.name).join(' | ')].map(s=>`"${String(s).replace(/"/g,'""')}"`).join(','));
+  });
+  download("postman-report.csv", rows.join("\\n"));
+}
+
+function exportHTML(){
+  if(!globalNorm) return;
+  const blob = new Blob([document.documentElement.outerHTML], {type:"text/html"});
+  download("postman-report.html", URL.createObjectURL(blob), true);
+}
+
+function download(name,content,isUrl){
+  const a=document.createElement("a"); a.download=name; a.href=isUrl?content:URL.createObjectURL(new Blob([content])); a.click();
+}
+
+function esc(s){ return String(s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+</script>
+</body>
+</html>
